@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>982</width>
-    <height>625</height>
+    <width>846</width>
+    <height>657</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>UCI Tool</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="5,0">
+  <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="5,3">
    <item>
     <widget class="QWidget" name="widget_2" native="true">
      <layout class="QGridLayout" name="gridLayout">
@@ -264,7 +264,7 @@
     <widget class="QWidget" name="widget" native="true">
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <widget class="QTableWidget" name="tableWidget">
+       <widget class="QTableWidget" name="tableWidget_packets">
         <column>
          <property name="text">
           <string>Name</string>

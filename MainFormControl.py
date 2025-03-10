@@ -1,7 +1,39 @@
+from struct import Struct
+
 from PyQt6.QtWidgets import QWidget, QMessageBox, QTableWidgetItem
 from MainForm import Ui_Form
+from construct import Struct, BitsInteger, Bytes, this
 
-class MainFormContrl(QWidget):
+
+def control_packet_header(mt, pbf, gid, oid, payload):
+    """
+    命令包头
+    :return:
+    """
+    msg_format = Struct(
+        "mt" / BitsInteger(3),   # MT: 3 bits
+        "pbf" / BitsInteger(1),  # PBF: 1 bit
+        "gid" / BitsInteger(4),  # GID: 4 bits
+        "rfu" / BitsInteger(2),  # RFU: 2 bits
+        "oid" / BitsInteger(6),  # OID: 6 bits
+        "length" / BitsInteger(8),  # Length: 8 bits
+        "payload" / Bytes(this.length),  # Data: length bytes
+    )
+
+    msg = msg_format.build({
+        "mt": mt,
+        "pbf": pbf,
+        "gid": gid,
+        "rfu": 0x00,
+        "oid": oid,
+        "length": len(payload),
+        "payload": payload,
+    })
+    msg = msg.hex()
+    return  msg
+
+
+class MainFormControl(QWidget):
     def __init__(self):
         super().__init__()
         self.ui = Ui_Form()
@@ -13,6 +45,7 @@ class MainFormContrl(QWidget):
         self.GID = self.ui.comboBox_GID
         self.OID = self.ui.comboBox_OID
         self.DPF = self.ui.comboBox_DPF
+        self.Packets = self.ui.tableWidget_packets
 
         self.uci_core = ['CORE_DEVICE_RESET_CMD/RSP', 'CORE_DEVICE_STATUS_NTF','CORE_GET_DEVICE_INFO_CMD/RSP',
                          'CORE_GET_CAPS_INFO_CMD/RSP', 'CORE_SET_CONFIG_CMD/RSP', 'CORE_GET_CONFIG_CMD/RSP', 'RFU'
@@ -56,7 +89,7 @@ class MainFormContrl(QWidget):
         self.vendor_specific1 = []
         self.vendor_specific2 = []
 
-        self.init_pusbutton_operator()
+        self.init_pushbutton_operator()
         self.init()
 
     def init(self):
@@ -65,15 +98,16 @@ class MainFormContrl(QWidget):
         self.GID.setEnabled(False)
         self.OID.setEnabled(False)
 
-    def init_pusbutton_operator(self):
-        '''
+    def init_pushbutton_operator(self):
+        """
         连接按钮的槽函数
         :return:
-        '''
+        """
         self.ui.pushButton_add.clicked.connect(self.add_payload)
         self.ui.pushButton_delet.clicked.connect(self.delete_payload)
         self.GID.currentIndexChanged.connect(self.GID_change)
         self.MsgType.currentIndexChanged.connect(self.MsgType_change)
+        self.ui.pushButton_save.clicked.connect(self.save_msg)
 
     def add_payload(self):
         row_count = self.payloadTable.rowCount()
@@ -89,17 +123,11 @@ class MainFormContrl(QWidget):
             return
         self.payloadTable.removeRow(current_row)
 
-    def save_msg(self):
-        '''
-        保存当前编辑的消息
-        :return:
-        '''
-
     def MsgType_change(self):
-        '''
+        """
 
         :return:
-        '''
+        """
         msgType = self.MsgType.currentIndex()
         if msgType != 0:
             self.DPF.setEnabled(False)
@@ -110,12 +138,10 @@ class MainFormContrl(QWidget):
             self.GID.setEnabled(False)
             self.OID.setEnabled(False)
 
-
-
     def GID_change(self):
-        '''
+        """
         :return:
-        '''
+        """
         self.OID.clear()
         current_GID = self.GID.currentText()
         if current_GID == 'UCI Core':
@@ -131,4 +157,59 @@ class MainFormContrl(QWidget):
         elif current_GID == 'Vendor Specific 2':
             self.OID.addItems(self.vendor_specific2)
 
+    def save_msg(self):
+        """
+        添加当前的
+        :return:
+        """
+        mt = self.MsgType.currentIndex()
+        pbf = self.PBF.currentIndex()
+        # msg_value = 0x00
 
+        current_pak_type = self.MsgType.currentIndex()
+        if current_pak_type == 0:
+            dpf = self.DPF.currentIndex()
+        else:
+            gid = self.GID.currentIndex()
+            oid = self.OID.currentIndex()
+            payload = self.read_payload()
+            msg_value = control_packet_header(mt, pbf,gid, oid, payload)
+        row_count = self.Packets.rowCount()
+        self.Packets.insertRow(row_count)
+        msg_name = self.OID.currentText()
+        self.Packets.setItem(row_count, 0, QTableWidgetItem(msg_name))
+        self.Packets.setItem(row_count, 1, QTableWidgetItem(msg_value))
+
+
+    def data_packet_header(self, ):
+        """
+        数据包头
+        :return:
+        """
+
+    def read_payload(self):
+        """
+        读取表格中的数据
+        :return:
+        """
+        data = bytearray()
+
+        for row in range(self.payloadTable.rowCount()):
+            length_item = self.payloadTable.item(row, 1)
+            value_item = self.payloadTable.item(row, 2)
+
+            if length_item and value_item:
+                length = int(length_item.text())
+                value =  value_item.text()
+
+                if value.startswith("0x"):
+                    value_bytes = bytes.fromhex(value[2:])
+                else:
+                    value_bytes = value.encode('utf-8')
+                if len(value_bytes) != length:
+                    raise ValueError(f"Row {row + 1}: Data length mismatch")
+                data.extend(value_bytes)
+        return data
+
+
+# 0000010000000000000000000001000000000000000001000155
