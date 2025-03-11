@@ -1,36 +1,38 @@
-from struct import Struct
-
 from PyQt6.QtWidgets import QWidget, QMessageBox, QTableWidgetItem
 from MainForm import Ui_Form
-from construct import Struct, BitsInteger, Bytes, this
-
+from construct import Struct, BitStruct, BitsInteger, Byte, Bytes, this
 
 def control_packet_header(mt, pbf, gid, oid, payload):
     """
     命令包头
-    :return:
     """
     msg_format = Struct(
-        "mt" / BitsInteger(3),   # MT: 3 bits
-        "pbf" / BitsInteger(1),  # PBF: 1 bit
-        "gid" / BitsInteger(4),  # GID: 4 bits
-        "rfu" / BitsInteger(2),  # RFU: 2 bits
-        "oid" / BitsInteger(6),  # OID: 6 bits
-        "length" / BitsInteger(8),  # Length: 8 bits
+        "header" / BitStruct(
+            "mt" / BitsInteger(3),   # MT: 3 bits
+            "pbf" / BitsInteger(1),  # PBF: 1 bit
+            "gid" / BitsInteger(4),  # GID: 4 bits
+            "rfu" / BitsInteger(2),  # RFU: 2 bits
+            "oid" / BitsInteger(6),  # OID: 6 bits
+        ),
+        "rfu1" / Byte,
+        "length" / Byte,  # Length: 1 byte (instead of BitsInteger)
         "payload" / Bytes(this.length),  # Data: length bytes
     )
 
     msg = msg_format.build({
-        "mt": mt,
-        "pbf": pbf,
-        "gid": gid,
-        "rfu": 0x00,
-        "oid": oid,
+        "header": {
+            "mt": mt,
+            "pbf": pbf,
+            "gid": gid,
+            "rfu": 0x00,
+            "oid": oid,
+        },
+        "rfu1": 0x00,
         "length": len(payload),
         "payload": payload,
     })
-    msg = msg.hex()
-    return  msg
+    msg_hex = msg.hex()
+    return msg_hex
 
 
 class MainFormControl(QWidget):
@@ -213,3 +215,5 @@ class MainFormControl(QWidget):
 
 
 # 0000010000000000000000000001000000000000000001000155
+# 000_0_0100 00_000000 00000000 00010000 00000000 00000100 01 aa
+# b'\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
