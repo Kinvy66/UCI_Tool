@@ -110,6 +110,7 @@ class MainFormControl(QWidget):
         self.GID.currentIndexChanged.connect(self.GID_change)
         self.MsgType.currentIndexChanged.connect(self.MsgType_change)
         self.ui.pushButton_save.clicked.connect(self.save_msg)
+        self.ui.pushButton_deleteMsg.clicked.connect(self.delete_msg)
 
     def add_payload(self):
         row_count = self.payloadTable.rowCount()
@@ -166,13 +167,15 @@ class MainFormControl(QWidget):
         """
         mt = self.MsgType.currentIndex()
         pbf = self.PBF.currentIndex()
-        # msg_value = 0x00
+        msg_value = 0x00
 
         current_pak_type = self.MsgType.currentIndex()
         if current_pak_type == 0:
             dpf = self.DPF.currentIndex()
         else:
             gid = self.GID.currentIndex()
+            if gid == 4:
+                gid = 13
             oid = self.OID.currentIndex()
             payload = self.read_payload()
             msg_value = control_packet_header(mt, pbf,gid, oid, payload)
@@ -181,6 +184,17 @@ class MainFormControl(QWidget):
         msg_name = self.OID.currentText()
         self.Packets.setItem(row_count, 0, QTableWidgetItem(msg_name))
         self.Packets.setItem(row_count, 1, QTableWidgetItem(msg_value))
+
+    def delete_msg(self):
+        """
+
+        :return:
+        """
+        current_row = self.Packets.currentRow()
+        if current_row == -1:
+            QMessageBox.warning(self, 'Warning', 'Please select a payload')
+            return
+        self.Packets.removeRow(current_row)
 
 
     def data_packet_header(self, ):
