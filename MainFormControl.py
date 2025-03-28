@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QMessageBox, QTableWidgetItem
-from MainForm import Ui_Form
+from MainForm import Ui_MainWindow
 from construct import Struct, BitStruct, BitsInteger, Byte, Bytes, this
 
 def control_packet_header(mt, pbf, gid, oid, payload):
@@ -38,7 +38,7 @@ def control_packet_header(mt, pbf, gid, oid, payload):
 class MainFormControl(QWidget):
     def __init__(self):
         super().__init__()
-        self.ui = Ui_Form()
+        self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.payload = self.ui.groupBox_payload
         self.payloadTable = self.ui.tableWidget_payload
@@ -50,7 +50,7 @@ class MainFormControl(QWidget):
         self.Packets = self.ui.tableWidget_packets
 
         self.uci_core = ['CORE_DEVICE_RESET_CMD/RSP', 'CORE_DEVICE_STATUS_NTF','CORE_GET_DEVICE_INFO_CMD/RSP',
-                         'CORE_GET_CAPS_INFO_CMD/RSP', 'CORE_SET_CONFIG_CMD/RSP', 'CORE_GET_CONFIG_CMD/RSP', 'RFU'
+                         'CORE_GET_CAPS_INFO_CMD/RSP', 'CORE_SET_CONFIG_CMD/RSP', 'CORE_GET_CONFIG_CMD/RSP', 'RFU',
                          'CORE_GENERIC_ERROR_NTF', 'CORE_QUERY_UWBS_TIMESTAMP_CMD/RSP']
         self.uwb_session_config = ['SESSION_INIT_CMD/RSP'
                                     ,'SESSION_DEINIT_CMD/RSP'
@@ -111,6 +111,7 @@ class MainFormControl(QWidget):
         self.MsgType.currentIndexChanged.connect(self.MsgType_change)
         self.ui.pushButton_save.clicked.connect(self.save_msg)
         self.ui.pushButton_deleteMsg.clicked.connect(self.delete_msg)
+        self.ui.pushButton_parser.clicked.connect(self.parser_cmd)
 
     def add_payload(self):
         row_count = self.payloadTable.rowCount()
@@ -223,11 +224,74 @@ class MainFormControl(QWidget):
                 else:
                     value_bytes = value.encode('utf-8')
                 if len(value_bytes) != length:
-                    raise ValueError(f"Row {row + 1}: Data length mismatch")
+                    QMessageBox.warning(self, 'Warning', f"Row {row + 1}: Data length mismatch")
+                    # raise ValueError(f"Row {row + 1}: Data length mismatch")
                 data.extend(value_bytes)
         return data
 
 
+    def parser_cmd(self):
+        mt_list = ['CMD', 'RSP','NTF']
+        cmd_str = self.ui.plainTextEdit_CMD.toPlainText()
+        bytes_data = bytes.fromhex(cmd_str)
+        if len(bytes_data) < 4:
+            raise ValueError("CMD string must have at least 4 bytes (8 characters)")
+            # 提取各个字节
+        byte1 = bytes_data[0]  # 第一个字节
+        byte2 = bytes_data[1]  # 第二个字节
+        byte4 = bytes_data[3]  # 第四个字节
+
+        MT = (byte1 >> 5) & 0b111
+        PBF = (byte1 >> 4) & 0b1
+        GID = byte1 & 0b1111
+        OID = byte2 & 0b00111111
+        payloadLen = byte4
+
+        parser = ''
+
+        if 0x00 == GID:
+            parser = self.uci_core[OID]
+        elif 0x01 == GID:
+            parser = self.uwb_session_config[OID]
+        elif 0x02 == GID:
+            parser = self.uwb_session_control[OID]
+
+        parser = "MT:{mt} \r\nCMD: ".format(mt=mt_list[MT-1]) + parser
+        self.ui.textEdit_cmd.setText(parser)
+
 # 0000010000000000000000000001000000000000000001000155
 # 000_0_0100 00_000000 00000000 00010000 00000000 00000100 01 aa
 # b'\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
+
+"""
+device cap
+
+uint16_t max_data_mes_size;	// Maximum size of UCI Data Messages the UWBS can receive
+uint16_t max_data_packet_payload_size; // Maximum UCI Data Packet Payload Size the UWBS can send or receive.
+uint32_t fira_phy_version_range; // FiRa PHY version range supported,‘01010202’ = Version 1.1 to 2.2 support
+uint32_t fira_mac_version_range;	// FiRa MAC version range supported,‘01010202’ = Version 1.1 to 2.2 support
+uint8_t	 device_type;	// DC_DEVICE_TYPE_*
+uint16_t device_roles;	// DC_DEVICE_ROLES_*
+uint16_t ranging_method;	// DC_RANGING_METHOD_*
+uint8_t  sts_config;	// DC_STS_CONFIG_*
+uint8_t  multi_node_mode; // DC_MULTI_NODE_MODE_*
+uint8_t  ranging_time_struct;	// DC_RANGING_TIME_*
+uint8_t  schedule_mode;	// DC_SCHEDULE_MODE_*
+uint8_t  hopping_mode;	// DC_HOPPING_MODE_*
+uint8_t  block_striding;	// DC_BLOCK_STRIDING_*
+uint8_t  uwb_init_time;
+uint8_t  channels; // DC_CHANNELS_SUPPORT_*
+uint8_t  rframe_config; // DC_RFRAME_CONFIG_*
+uint8_t  cc_constr_len; // DC_CC_CONSTRAINT_LENGTH_K_*
+uint8_t  bprf_para_sets; // DC_BPRF_PARAMETERS_SETS_*
+uint8_t  hprf_para_sets[5]; // DC_HPRF_PARAMETERS_*_SETS_*
+uint8_t  aoa_support; // DC_AOA_SUPPORT_*
+uint8_t  extend_mac_address;
+uint8_t  assigned;
+uint8_t  session_key_len; // DC_SESSION_KEY_LENGTH_*
+uint8_t  dt_anc_max_active_rr;
+uint8_t  dt_tag_max_active_rr;
+uint8_t  dt_tag_block_skipping;
+uint8_t  psdu_len_support; // DC_PSDU_LENGTH_SUPPORT_*
+"""
