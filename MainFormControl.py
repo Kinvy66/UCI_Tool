@@ -255,6 +255,8 @@ class MainFormControl(QWidget):
             parser = self.uwb_session_config[OID]
         elif 0x02 == GID:
             parser = self.uwb_session_control[OID]
+        elif 0x0D == GID:
+            parser = self.test_group[OID]
 
         parser = "MT:{mt} \r\nCMD: ".format(mt=mt_list[MT-1]) + parser
         self.ui.textEdit_cmd.setText(parser)
