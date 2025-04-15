@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QMessageBox, QTableWidgetItem
 from MainForm import Ui_MainWindow
 from construct import Struct, BitStruct, BitsInteger, Byte, Bytes, this
+from uci_parser import UCIPaser
 
 def control_packet_header(mt, pbf, gid, oid, payload):
     """
@@ -33,6 +34,7 @@ def control_packet_header(mt, pbf, gid, oid, payload):
     })
     msg_hex = msg.hex()
     return msg_hex
+
 
 
 class MainFormControl(QWidget):
@@ -111,7 +113,8 @@ class MainFormControl(QWidget):
         self.MsgType.currentIndexChanged.connect(self.MsgType_change)
         self.ui.pushButton_save.clicked.connect(self.save_msg)
         self.ui.pushButton_deleteMsg.clicked.connect(self.delete_msg)
-        self.ui.pushButton_parser.clicked.connect(self.parser_cmd)
+        # self.ui.pushButton_parser.clicked.connect(self.parser_cmd)
+        self.ui.pushButton_parser.clicked.connect(self.uci_parser)
 
     def add_payload(self):
         row_count = self.payloadTable.rowCount()
@@ -260,6 +263,13 @@ class MainFormControl(QWidget):
 
         parser = "MT:{mt} \r\nCMD: ".format(mt=mt_list[MT-1]) + parser
         self.ui.textEdit_cmd.setText(parser)
+
+
+    def uci_parser(self):
+        uci_parser = UCIPaser()
+        cmd_str = self.ui.plainTextEdit_CMD.toPlainText()
+        parser_str = uci_parser.parser(cmd_str)
+        self.ui.textEdit_cmd.setText(parser_str)
 
 # 0000010000000000000000000001000000000000000001000155
 # 000_0_0100 00_000000 00000000 00010000 00000000 00000100 01 aa
